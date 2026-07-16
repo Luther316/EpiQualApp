@@ -1,0 +1,4 @@
+[server]
+maxUploadSize = 1024          # Set file upload ceiling to 1GB
+maxMessageSize = 1024          # CRITICAL: Allow WebSocket payloads up to 1GB (prevents preview crashes)
+enableWebsocketCompression = false  # Disable compression to save CPU and RAM

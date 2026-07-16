@@ -1,0 +1,9 @@
+Interview Transcript - Case ID: LGU-04-A
+Respondent: Rural Health Unit (RHU) Nurse & Local Poultry Cooperatives Coordinator
+Location: Brgy. San Jose (near lakeside wetlands)
+
+"Sa totoo lang, mga two weeks ago pa nagsimula yung pagkamatay ng mga pato doon sa may gilid ng lawa. Ang sabi ng mga magsasaka, normal lang daw kasi tag-ulan at baka 'peste' lang ng hayop. Sabi ko sa kanila, i-report natin sa Provincial Veterinary Office (PVO), pero natakot sila. 'Sabi nila, "Ma'am, huwag na natin i-report sa Agri, baka i-depopulate o i-cull lahat ng manok at pato namin. Paano na yung pangkabuhayan namin? Walang pambayad sa amin." Kaya hinayaan na lang nila, tinapon na lang yung mga patay na pato sa drainage canal papunta sa palayan.'
+
+And then last week, dynamic na ang nangyari. Pumasok na sa clinic si Mang Pedring, may high fever, matinding ubo, at sumasakit ang dibdib. Sabi niya, tumulong siya mag-dispose nung mga patay na ibon sa canal gamit lang ang bare hands, walang guwantes o mask. 
+
+Dito kami nagkaproblema sa surveillance system natin. Noong sinubukan kong i-log ang case ni Mang Pedring sa digital portal ng PIDSR (Philippine Integrated Disease Surveillance and Registry), walang drop-down menu para sa suspected Avian Influenza spillover sa tao. It is super rigid! Hindi ko alam kung sa Influenza-Like Illness (ILI) ko ba ilalagay o Severe Acute Respiratory Infection (SARI). Sobrang kumplikado ng online form at nag-error pa dahil sa mahinang internet, kaya tinabi ko muna yung papel. I spent almost two hours trying to figure out how to report it properly, but the system wouldn't accept the exposure details about the dead ducks because there is no link between our health database and the Department of Agriculture's animal health system. Up to now, separate silos pa rin kami."
