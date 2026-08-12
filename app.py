@@ -231,9 +231,10 @@ with tab1:
                     with st.spinner("Extracting text from document..."):
                         try:
                             doc_text = extract_text_from_file(uploaded_file)
-                            st.session_state.transcript_text = doc_text
+                            # Set both the session state variable AND the widget key directly
+                            st.session_state["transcript_text"] = doc_text
+                            st.session_state["transcript_area_input"] = doc_text
                             st.success("✅ Document text successfully extracted and loaded to workspace!")
-                            st.rerun()
                         except Exception as e:
                             st.error(f"Error reading document: {e}")
                             
@@ -287,15 +288,20 @@ with tab1:
                         
     with col2:
         st.subheader("Transcript Workspace")
+        
+        # Initialize widget key in session state if it doesn't exist
+        if "transcript_area_input" not in st.session_state:
+            st.session_state["transcript_area_input"] = st.session_state.get("transcript_text", "")
+
         transcript_input = st.text_area(
             "Paste, Edit, or Review Field Narratives Below:",
-            value=st.session_state.transcript_text,
             height=300,
             placeholder="Uploaded text or transcribed speech will appear here...",
             key="transcript_area_input"
         )
-        # Update session state if manually edited in text area
-        st.session_state.transcript_text = transcript_input
+        
+        # Sync transcript_text with current text area value
+        st.session_state["transcript_text"] = transcript_input
 
 with tab2:
     st.subheader("Targeted Thematic Audit Engine")
@@ -323,7 +329,8 @@ with tab2:
                     "OUTPUT FORMAT REQUIREMENT:\n"
                     "For every theme or code detected in the transcript, you MUST return the results matching this exact structured format:\n\n"
                     "### 📌 [Insert Theme/Code Name Here]\n"
-                    "- **Verbatim Narrative Context (Exact Quote):** \"[Insert the exact raw word-for-word string from the text. Keep it in its original language, like Tagalog/Taglish/Cebuano/Chavacano. Do not change punctuation or words.]\"\n"
+                    "- **Verbatim Narrative Context (Exact Quote):** \"[Insert the exact raw word-for-word string from the text in its original language, like Tagalog/Taglish/Cebuano/Chavacano. Do not change punctuation or words.]\"\n"
+                    "- **English Translation:** \"[If the raw quote is not in English, provide an accurate, clear English translation here. If the quote is already in English, write 'N/A (Original in English)'.]\"\n"
                     "- **Epidemiological Bottleneck Memo:** [Provide a concise, 2-sentence analytical summary of what systemic error, operational delay, or coordination block this quote represents under the chosen context.]\n\n"
                     "If the chosen approach requires generating emergent, inductive codes, format them the exact same way but add a '🌱 [Emergent Grounded Code]' tag next to the theme name.\n"
                     "If a theme or code is not detected, do not list it. Be extremely objective. Do not extrapolate outside the text."
