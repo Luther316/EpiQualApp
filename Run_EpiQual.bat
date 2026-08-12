@@ -13,7 +13,7 @@ echo   Launching the App...
 echo ===================================================
 
 :: 2. Start the app safely and hide developer tools
-call python -m streamlit run app.py --client.toolbarMode=hidden
+call python -m streamlit run app.py --client.toolbarMode=minimal
 
 :: 3. Keep window open if the app crashes so students can see the error
 if %errorlevel% neq 0 (
