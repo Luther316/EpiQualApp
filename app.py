@@ -338,7 +338,7 @@ with tab2:
                 
                 try:
                     response = client.chat.completions.create(
-                        model="llama3.1",
+                        model="llama3.2:3b",
                         messages=[
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
