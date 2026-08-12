@@ -343,7 +343,7 @@ with tab2:
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
                         ],
-                        temperature=0.1
+                        temperature=0.1,
                         max_tokens=1000
                     )
                     # Replace st.session_state.analysis_results = response.choices[0].message.content with:
