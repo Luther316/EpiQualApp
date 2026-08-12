@@ -1,3 +1,5 @@
 streamlit
 openai
 faster-whisper
+python-docx
+pypdf

@@ -1,6 +1,10 @@
 import streamlit as st
 from openai import OpenAI
 import os
+import csv
+from datetime import datetime
+import docx
+from pypdf import PdfReader
 
 # Initialize local Ollama client
 client = OpenAI(
@@ -14,11 +18,37 @@ st.title("📊 EpiQual: Outbreak Qualitative Data Assistant")
 st.subheader("🔒 Multi-Layer Targeted Analysis Engine (Ollama Offline)")
 st.markdown("---")
 
-# Session state initialization for the active codebook and analysis outputs
+# Session state initialization for the active codebook, analysis outputs, and transcript
 if 'codebook' not in st.session_state:
     st.session_state.codebook = {}
 if 'analysis_results' not in st.session_state:
     st.session_state.analysis_results = ""
+if 'transcript_text' not in st.session_state:
+    st.session_state.transcript_text = ""
+
+# --- HELPER FUNCTION TO EXTRACT TEXT FROM VARIOUS DOC TYPES ---
+def extract_text_from_file(uploaded_file):
+    file_type = uploaded_file.name.split(".")[-1].lower()
+    extracted_text = ""
+    
+    # 1. Plain Text Files (.txt)
+    if file_type == "txt":
+        extracted_text = uploaded_file.read().decode("utf-8")
+        
+    # 2. Word Documents (.docx)
+    elif file_type == "docx":
+        doc = docx.Document(uploaded_file)
+        extracted_text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+        
+    # 3. PDF Documents (.pdf)
+    elif file_type == "pdf":
+        pdf_reader = PdfReader(uploaded_file)
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text:
+                extracted_text += text + "\n"
+                
+    return extracted_text
 
 # --- LAYER 0: METHODOLOGY CONFIGURATION ---
 QUAL_APPROACHES = {
@@ -171,18 +201,17 @@ tab1, tab2, tab3 = st.tabs(["🎙️ Step 1: Ingest Narratives", "🤖 Step 2: T
 with tab1:
     col1, col2 = st.columns([1, 1])
     with col1:
-        st.subheader("Field Media Processing")
+        st.subheader("Field Media & Document Processing")
         
-        # Dual input: File Uploader (for small files) OR Local Path (for large files > 25MB)
-        upload_mode = st.radio("Choose Media Source:", ["Local File Path (Recommended for large files)", "Direct File Upload"])
+        upload_mode = st.radio("Choose Input Source:", ["Direct File Upload (Audio, Video, Word, PDF, TXT)", "Local Audio/Video File Path"])
         
         uploaded_file = None
         local_file_path = ""
         
-        if upload_mode == "Direct File Upload":
+        if upload_mode == "Direct File Upload (Audio, Video, Word, PDF, TXT)":
             uploaded_file = st.file_uploader(
-                "Upload field recording (.mp3, .wav, .m4a, .mp4, .mkv, .mov)", 
-                type=["mp3", "wav", "m4a", "mp4", "mkv", "mov"]
+                "Upload field records (.mp3, .wav, .m4a, .mp4, .docx, .pdf, .txt)", 
+                type=["mp3", "wav", "m4a", "mp4", "mkv", "mov", "docx", "pdf", "txt"]
             )
         else:
             local_file_path = st.text_input(
@@ -190,58 +219,66 @@ with tab1:
                 placeholder=r"C:\Users\rcmartinez\OneDrive\EpiQualApp\Voice 001.m4a"
             )
             
-        extracted_text = ""
-        
-        # Scenario A: Handling direct uploaded file
-        if upload_mode == "Direct File Upload" and uploaded_file is not None:
+        # Scenario A: Direct File Upload Handling
+        if upload_mode == "Direct File Upload (Audio, Video, Word, PDF, TXT)" and uploaded_file is not None:
+            file_extension = uploaded_file.name.split(".")[-1].lower()
             file_size_mb = uploaded_file.size / (1024 * 1024)
             st.info(f"📁 Loaded: {uploaded_file.name} ({file_size_mb:.1f} MB)")
             
-            # Auto-preview only if extremely small to avoid websocket choke
-            if file_size_mb < 15:
-                file_extension = os.path.splitext(uploaded_file.name)[-1].lower()
-                if file_extension in [".mp4", ".mkv", ".mov"]:
-                    st.video(uploaded_file)
+            # --- 1. DOCUMENTS (.docx, .pdf, .txt) ---
+            if file_extension in ["docx", "pdf", "txt"]:
+                if st.button("Extract Document Text", type="primary", key="extract_doc"):
+                    with st.spinner("Extracting text from document..."):
+                        try:
+                            doc_text = extract_text_from_file(uploaded_file)
+                            st.session_state.transcript_text = doc_text
+                            st.success("✅ Document text successfully extracted and loaded to workspace!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error reading document: {e}")
+                            
+            # --- 2. AUDIO / VIDEO MEDIA ---
+            elif file_extension in ["mp3", "wav", "m4a", "mp4", "mkv", "mov"]:
+                if file_size_mb < 15:
+                    if file_extension in ["mp4", "mkv", "mov"]:
+                        st.video(uploaded_file)
+                    else:
+                        st.audio(uploaded_file)
                 else:
-                    st.audio(uploaded_file)
-            else:
-                st.warning("⚠️ File is too large for browser playback. Proceed directly to transcription.")
+                    st.warning("⚠️ File is too large for browser preview. Proceed directly to transcription.")
 
-            if st.button("Transcribe Media (Local Run)", type="primary", key="transcribe_uploaded"):
-                with st.spinner("Processing media text extraction locally..."):
-                    try:
-                        from faster_whisper import WhisperModel
-                        with open("temp_media_file", "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                        
-                        model = WhisperModel("small", device="cpu", compute_type="int8")
-                        segments, info = model.transcribe("temp_media_file", beam_size=5)
-                        extracted_text = " ".join([segment.text for segment in segments])
-                        st.success(f"Successfully processed! Detected language: {info.language}")
-                        os.remove("temp_media_file")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Local transcription error: {e}")
-                        if os.path.exists("temp_media_file"):
+                if st.button("Transcribe Media (Local Run)", type="primary", key="transcribe_uploaded"):
+                    with st.spinner("Processing media text extraction locally via Whisper..."):
+                        try:
+                            from faster_whisper import WhisperModel
+                            with open("temp_media_file", "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                            
+                            model = WhisperModel("small", device="cpu", compute_type="int8")
+                            segments, info = model.transcribe("temp_media_file", beam_size=5)
+                            st.session_state.transcript_text = " ".join([segment.text for segment in segments])
+                            st.success(f"Successfully transcribed! Detected language: {info.language}")
                             os.remove("temp_media_file")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Local transcription error: {e}")
+                            if os.path.exists("temp_media_file"):
+                                os.remove("temp_media_file")
 
-        # Scenario B: Handling local path directly (NO UPLOAD NETWORK DELAY)
-        elif upload_mode == "Local File Path (Recommended for large files)" and local_file_path:
+        # Scenario B: Local File Path Handling
+        elif upload_mode == "Local Audio/Video File Path" and local_file_path:
             if os.path.exists(local_file_path):
                 file_size_mb = os.path.getsize(local_file_path) / (1024 * 1024)
                 st.success(f"✅ Found File: {os.path.basename(local_file_path)} ({file_size_mb:.1f} MB)")
                 
                 if st.button("Transcribe Local File", type="primary", key="transcribe_local"):
-                    with st.spinner("Whisper reading directly from disk (zero network upload)..."):
+                    with st.spinner("Whisper reading directly from disk..."):
                         try:
                             from faster_whisper import WhisperModel
-                            
-                            # Whisper reads directly from the hard drive path! No temp copy or RAM buffer spikes.
                             model = WhisperModel("small", device="cpu", compute_type="int8")
                             segments, info = model.transcribe(local_file_path, beam_size=5)
-                            extracted_text = " ".join([segment.text for segment in segments])
-                            
-                            st.success(f"Successfully processed! Detected language: {info.language}")
+                            st.session_state.transcript_text = " ".join([segment.text for segment in segments])
+                            st.success(f"Successfully transcribed! Detected language: {info.language}")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Local disk transcription error: {e}")
@@ -251,12 +288,14 @@ with tab1:
     with col2:
         st.subheader("Transcript Workspace")
         transcript_input = st.text_area(
-            "Paste or Edit Field Narratives Below:",
-            value=extracted_text if extracted_text else "",
+            "Paste, Edit, or Review Field Narratives Below:",
+            value=st.session_state.transcript_text,
             height=300,
-            placeholder="Paste raw field interview transcripts...",
-            key="transcript_area_input"  # Unique ID prevents duplication issues
+            placeholder="Uploaded text or transcribed speech will appear here...",
+            key="transcript_area_input"
         )
+        # Update session state if manually edited in text area
+        st.session_state.transcript_text = transcript_input
 
 with tab2:
     st.subheader("Targeted Thematic Audit Engine")
@@ -265,8 +304,8 @@ with tab2:
     if st.button("Run Targeted Framework Analysis", type="primary"):
         if not st.session_state.codebook:
             st.warning("Your active codebook framework is empty. Please configure and load options in the sidebar.")
-        elif not transcript_input:
-            st.warning("Please provide transcript data in Step 1 first.")
+        elif not st.session_state.transcript_text:
+            st.warning("Please provide transcript or document data in Step 1 first.")
         else:
             with st.spinner("Analyzing text through targeted local AI modules..."):
                 formatted_codes = ""
@@ -295,7 +334,7 @@ with tab2:
                         model="llama3.1",
                         messages=[
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": f"Transcript to process:\n\"\"\"{transcript_input}\"\"\""}
+                            {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
                         ],
                         temperature=0.1
                     )
@@ -366,15 +405,50 @@ with tab3:
         
     if submit_eval:
         # Calculate standard SUS Score
-        # Odd Qs (1, 3, 5, 7, 9) contribute score - 1
         pos_score = (sus_q1 - 1) + (sus_q3 - 1) + (sus_q5 - 1) + (sus_q7 - 1) + (sus_q9 - 1)
-        # Even Qs (2, 4, 6, 8, 10) contribute 5 - score
         neg_score = (5 - sus_q2) + (5 - sus_q4) + (5 - sus_q6) + (5 - sus_q8) + (5 - sus_q10)
         sus_total = (pos_score + neg_score) * 2.5
+        utility_avg = (util_717 + util_popcab + util_cdc + util_verbatim + util_dialect + util_security) / 6.0
         
+        # --- SAVE TO LOCAL CSV DATABASE ---
+        csv_file = "evaluation_database.csv"
+        file_exists = os.path.isfile(csv_file)
+        
+        headers = [
+            "Timestamp", "Qualitative_Methodology", "Outbreak_Domain", "Evaluation_Framework", 
+            "SUS_Score", "Utility_Average", "SUS_Q1", "SUS_Q2", "SUS_Q3", "SUS_Q4", "SUS_Q5", 
+            "SUS_Q6", "SUS_Q7", "SUS_Q8", "SUS_Q9", "SUS_Q10", "Util_7-1-7", "Util_PopCAB", 
+            "Util_CDC_Surveillance", "Util_Verbatim_Preservation", "Util_Dialect_Comprehension", 
+            "Util_Offline_Security", "Evaluator_Comments"
+        ]
+        
+        new_row = [
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            selected_approach,
+            selected_outbreak,
+            selected_framework,
+            sus_total,
+            round(utility_avg, 2),
+            sus_q1, sus_q2, sus_q3, sus_q4, sus_q5,
+            sus_q6, sus_q7, sus_q8, sus_q9, sus_q10,
+            util_717, util_popcab, util_cdc,
+            util_verbatim, util_dialect, util_security,
+            evaluation_notes
+        ]
+        
+        try:
+            with open(csv_file, mode="a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    writer.writerow(headers)
+                writer.writerow(new_row)
+            st.success("💾 Evaluation recorded to local CSV database!")
+        except Exception as e:
+            st.error(f"Failed to record to CSV database: {e}")
+        
+        # --- DISPLAY RESULTS PANEL ---
         st.success("🎉 Evaluation Scorecard Successfully Generated!")
         
-        # Display Metrics
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.metric(label="Calculated System Usability Scale (SUS) Score", value=f"{sus_total}/100")
@@ -387,39 +461,4 @@ with tab3:
                 st.write("🔴 **Adjective Rating:** Marginally Poor / Grade F (Needs Redesign)")
                 
         with col_m2:
-            utility_avg = (util_717 + util_popcab + util_cdc + util_verbatim + util_dialect + util_security) / 6.0
             st.metric(label="Epidemiological Framework Utility Average", value=f"{utility_avg:.2f}/5.0")
-            
-        # Format Compile Report payload using robust triple quotes
-        compiled_report = f"""=== EPIDUALAPP EVALUATION SCORECARD ===
-Qualitative Methodology Evaluated: {selected_approach}
-Epidemiological Target Domain: {selected_outbreak}
-Systematic Framework Used: {selected_framework}
-
---- PART I: USABILITY METRICS ---
-Calculated SUS Score: {sus_total}/100
-Individual Items:
-  - Q1 (Use Frequency): {sus_q1}/5
-  - Q2 (Unnecessary Complexity): {sus_q2}/5
-  - Q3 (Intuitive/Ease of Use): {sus_q3}/5
-  - Q4 (Technical Support Needed): {sus_q4}/5
-  - Q5 (Well-Integrated Functions): {sus_q5}/5
-  - Q6 (Inconsistent Formatting): {sus_q6}/5
-  - Q7 (Quick Learnability): {sus_q7}/5
-  - Q8 (Cumbersome Workflow): {sus_q8}/5
-  - Q9 (Report Confidence Utility): {sus_q9}/5
-  - Q10 (AI Prompt Barrier): {sus_q10}/5
-
---- PART II: PUBLIC HEALTH UTILITY METRICS ---
-Average Score: {utility_avg:.2f}/5.0
-  - 7-1-7 Core Targets Mapping: {util_717}/5
-  - PopCAB Cross-Border Ingestion: {util_popcab}/5
-  - CDC Surveillance System Gaps: {util_cdc}/5
-  - Verbatim Quote Integrity: {util_verbatim}/5
-  - Dialect Comprehension Level: {util_dialect}/5
-  - Local Air-Gapped Security: {util_security}/5
-
---- PART III: EVALUATOR REMARKS ---
-Comments:
-"{evaluation_notes if evaluation_notes else 'No additional remarks provided.'}"
-"""
