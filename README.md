@@ -19,40 +19,39 @@ Before running the application, make sure you have the following installed on yo
 
 Follow these step-by-step instructions to get the application running on your local machine:
 
-### Step 1: Download the Local AI Model
+## Step 1: Download the Local AI Model
 Open your computer's regular command prompt (Windows) or terminal (Mac) and download the Llama model by running:
 ```bash
-
 ollama pull llama3.1
 
-Note for students with older/slower laptops (less than 16GB RAM): If the app runs slowly, download the lighter 3-billion parameter model instead:
+```
+### Note for students with older/slower laptops (less than 16GB RAM): If the app runs slowly, download the lighter 3-billion parameter model instead:
 ```bash
-
 ollama pull llama3.2:3b
 
-(If you download Llama 3.2, make sure to change line 147 in your app.py file from model="llama3.1" to model="llama3.2:3b").
+If you download Llama 3.2, make sure to change line 147 in your app.py file from model="llama3.1" to model="llama3.2:3b".
 
 Keep the Ollama application running in the background while using the app.
 
-Step 2: Open the Project in VS Code
+## Step 2: Open the Project in VS Code
 Open VS Code.
 
 Go to File > Open Folder... and select your EpiQualApp folder.
 
 Open the built-in terminal in VS Code (Terminal > New Terminal at the top menu).
 
-Step 3: Install Required Dependencies
+## Step 3: Install Required Dependencies
 In the VS Code terminal, run the following command to install the necessary library packages for the dashboard, the AI framework, and local audio transcription:
 ```bash
 
 python -m pip install streamlit openai faster-whisper
 
-🏃 How to Run the App
+# 🏃 How to Run the App
 Once setup is complete, execute the following command in your VS Code terminal to launch the interface:
-``bash
-
+```bash
 python -m streamlit run app.py --client.toolbarMode=hidden
 
+```
 Note: A browser window will automatically open at http://localhost:8501 to display your EpiQual workspace.
 
 ##################################### INSTRUCTIONS #############################################
