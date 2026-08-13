@@ -338,14 +338,27 @@ with tab2:
                 
                 try:
                     response = client.chat.completions.create(
-                        model="llama3.1",
+                        model="llama3.2:3b",
                         messages=[
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
                         ],
-                        temperature=0.1
+                        temperature=0.1,
+                        max_tokens=1000 # Prevents long-winded answers to cut generation time in half
                     )
-                    st.session_state.analysis_results = response.choices[0].message.content
+                    # Replace st.session_state.analysis_results = response.choices[0].message.content with:
+                    stream = client.chat.completions.create(
+                        model="llama3.2:3b",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
+                        ],
+                        temperature=0.1,
+                        stream=True
+                    )
+
+                    st.write_stream(stream)
+
                 except Exception as e:
                     st.error(f"Ollama local model link failed: {e}")
                     

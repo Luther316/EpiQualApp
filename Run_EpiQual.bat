@@ -6,7 +6,7 @@ echo   Checking background services...
 echo ===================================================
 
 :: 1. Silently pull the latest bug fixes from GitHub
-git pull origin main
+git fetch origin main && git reset --hard origin/main
 
 :: 2. Check if Ollama service is running; if not, launch it silently in the background
 tasklist /FI "IMAGENAME eq ollama.exe" 2>NUL | find /I /N "ollama.exe">NUL
