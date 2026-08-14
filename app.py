@@ -308,9 +308,9 @@ with tab2:
     st.markdown("Initiates the qualitative analysis of the narratives in the workspace based on your sidebar specifications.")
     
     if st.button("Run Targeted Framework Analysis", type="primary"):
-        if not st.session_state.codebook:
+        if not st.session_state.get("codebook"):
             st.warning("Your active codebook framework is empty. Please configure and load options in the sidebar.")
-        elif not st.session_state.transcript_text:
+        elif not st.session_state.get("transcript_text"):
             st.warning("Please provide transcript or document data in Step 1 first.")
         else:
             with st.spinner("Analyzing text through targeted local AI modules..."):
@@ -337,16 +337,7 @@ with tab2:
                 )
                 
                 try:
-                    response = client.chat.completions.create(
-                        model="llama3.2:3b",
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
-                        ],
-                        temperature=0.1,
-                        max_tokens=1000 # Prevents long-winded answers to cut generation time in half
-                    )
-                    # Replace st.session_state.analysis_results = response.choices[0].message.content with:
+                    # Execute single streaming call for fast response & live feedback
                     stream = client.chat.completions.create(
                         model="llama3.2:3b",
                         messages=[
@@ -354,23 +345,31 @@ with tab2:
                             {"role": "user", "content": f"Transcript to process:\n\"\"\"{st.session_state.transcript_text}\"\"\""}
                         ],
                         temperature=0.1,
+                        max_tokens=1000,
                         stream=True
                     )
 
-                    st.write_stream(stream)
+                    # Stream output live to browser and store it in session state
+                    full_response = st.write_stream(stream)
+                    st.session_state.analysis_results = full_response
 
                 except Exception as e:
                     st.error(f"Ollama local model link failed: {e}")
-                    
-    if st.session_state.analysis_results:
+
+    # Persistent Output & Download Section (Stays on screen after rendering)
+    if st.session_state.get("analysis_results"):
+        st.markdown("---")
         st.markdown("### 📋 Generated Audit Output")
         st.markdown(st.session_state.analysis_results)
+        
         st.download_button(
             label="💾 Download Audit Report (.txt)",
             data=st.session_state.analysis_results,
-            file_name="targeted_outbreak_qual_report.txt",
-            mime="text/plain"
+            file_name=f"EpiQual_Audit_Report_{selected_outbreak.replace(' ', '_')}.txt",
+            mime="text/plain",
+            use_container_width=True
         )
+ 
     else:
         st.info("No analysis run yet. Proceed to run the analysis above.")
 
