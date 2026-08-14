@@ -1,36 +1,32 @@
 @echo off
-title Launching EpiQual...
+title EpiQual App Launcher
 echo ===================================================
 echo   EpiQual: Outbreak Qualitative Data Assistant
-echo   Checking background services...
+echo   Checking environment & background services...
 echo ===================================================
 
-:: 1. Silently pull the latest bug fixes from GitHub
-git fetch origin main && git reset --hard origin/main
+:: 1. Force sync latest code from GitHub (overwrites uncommitted local blocks safely)
+git fetch origin main >nul 2>&1
+git reset --hard origin/main >nul 2>&1
 
-:: 2. Check if Ollama service is running; if not, launch it silently in the background
+:: 2. Auto-verify required Python dependencies are installed
+python -m pip install --quiet streamlit openai python-docx pypdf faster-whisper
+
+:: 3. Launch Ollama in the background if not already running
 tasklist /FI "IMAGENAME eq ollama.exe" 2>NUL | find /I /N "ollama.exe">NUL
-if "%ERRORLEVEL%"=="1" (
-    echo.
-    echo   [!] Starting Ollama Local AI Engine...
-    start /B "" "ollama" serve >nul 2>&1
-    timeout /t 3 /nobreak >nul
+if "%ERRORLEVEL%"=="0" (
+    echo   [OK] Ollama Local AI Engine is active.
 ) else (
-    echo   [OK] Ollama Local AI Engine is already active.
+    echo   [STARTING] Launching Ollama Local AI Engine...
+    start /B ollama serve
+    timeout /t 3 >nul
 )
 
 echo.
-echo   Launching the App...
+echo   Launching EpiQual Dashboard...
 echo ===================================================
 
-:: 3. Start the Streamlit app safely
-call python -m streamlit run app.py --client.toolbarMode=minimal
+:: 4. Run Streamlit App
+python -m streamlit run app.py --client.toolbarMode=minimal
 
-:: 4. Keep window open if the app crashes so you can read the error
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Something went wrong while launching EpiQual.
-    echo Please make sure Python and required libraries are installed!
-    echo.
-    pause
-)
+pause
